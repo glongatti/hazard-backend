@@ -14,8 +14,8 @@ const userSchema = new mongoose.Schema({
     name: {
         type: String,
         required: [true,'Campo nome é obrigatório'],
-        minlength: [5,'Poucos caracteres no nome'],
-        maxlength: 100
+        minlength: [5,'Mínimo de 5 caracteres no campo nome'], // Mensagens de erro para o model
+        maxlength: [100, 'Máximo de 100 caracteres no campo nome']
     },
     email: {
         type: String,
@@ -32,12 +32,14 @@ const userSchema = new mongoose.Schema({
 
 })
 
+// Adiciona método ao model
 userSchema.methods.matches = function (password: String): boolean {
     return bcrypt.compareSync(password, this.password)
 }
 
 // Middlewares
 
+// Função para criptografar um password
 const hashPassword = (obj: User, next) => {
     bcrypt.hash(obj.password, environment.security.saltRounds).then(hash => {
         obj.password = hash
@@ -45,6 +47,8 @@ const hashPassword = (obj: User, next) => {
     })
 }
 
+// Middleware que será chamado sempre que for criar um usuário
+// verifica se houver modificação no pass ( no caso na criação existe ), ele será criptografado
 const createUserMiddleware = function (next) {
     const user: User = this
     if (!user.isModified('password')) {
@@ -54,6 +58,7 @@ const createUserMiddleware = function (next) {
     }
 }
 
+// A mesma coisa acontece aqui caso aconteça um update no user
 const updateMiddleware = function (next) {
 
     if (!this.getUpdate().password) {
@@ -64,6 +69,8 @@ const updateMiddleware = function (next) {
         hashPassword(this.getUpdate(), next)
     }
 }
+
+// Utiliza cada uma dessas funções em determinadas ações do mongoose, ex: pra salvar um usuário (save) antes vai chamar o createUserMiddleware
 userSchema.pre('save', createUserMiddleware)
 userSchema.pre('findOneAndUpdate', updateMiddleware)
 userSchema.pre('update', updateMiddleware)
